@@ -14,12 +14,16 @@ Operação: Aguardando medição → Em produção → Produção finalizada/agu
 5. Manter responsividade para desktop e celular.
 6. Manter exportação/importação de backup com validação e confirmação antes de substituir a base.
 7. Preservar histórico automático de criação e mudanças de etapa.
-8. Não criar segurança fictícia: login e multiusuário só quando houver banco/autenticação reais.
+8. Preservar a data de fechamento como fonte dos relatórios mensal, trimestral e anual.
+9. Preservar parceiros/indicações, contrato/pedido e relatórios em PDF sem dependência externa.
+10. Não criar segurança fictícia: login e multiusuário só quando houver banco/autenticação reais.
 
 ## Dados e estabilidade
 
 - Os dados locais usam a chave `tony_crm_clients_v2`; a versão antiga é migrada automaticamente no mesmo navegador.
-- A importação aceita somente uma lista de clientes válida e descarta registros malformados.
+- Parceiros usam a chave `tony_crm_partners_v1` e são incluídos no mesmo backup dos clientes.
+- A importação valida clientes e parceiros, descartando registros malformados antes de substituir a base.
+- Fechamentos sem `closedAt` devem ficar fora dos resultados por período até a data real ser registrada.
 - Antes de alterar `config.js`, exportar um backup.
 - Não adicionar dependências, build, backend ou integrações simuladas sem uma necessidade explícita.
 

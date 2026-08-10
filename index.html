@@ -17,6 +17,8 @@
         <button type="button" class="nav-btn active" data-view="dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>Visão geral</span></button>
         <button type="button" class="nav-btn" data-view="pipeline"><span class="nav-icon" aria-hidden="true">▦</span><span>Funil</span></button>
         <button type="button" class="nav-btn" data-view="clients"><span class="nav-icon" aria-hidden="true">👤</span><span>Clientes</span></button>
+        <button type="button" class="nav-btn" data-view="partners"><span class="nav-icon" aria-hidden="true">⌘</span><span>Parceiros</span></button>
+        <button type="button" class="nav-btn" data-view="reports"><span class="nav-icon" aria-hidden="true">▤</span><span>Relatórios</span></button>
       </nav>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-actions">
@@ -40,6 +42,8 @@
         <div id="dashboardView" class="view"></div>
         <div id="pipelineView" class="view hidden"></div>
         <div id="clientsView" class="view hidden"></div>
+        <div id="partnersView" class="view hidden"></div>
+        <div id="reportsView" class="view hidden"></div>
       </section>
     </main>
   </div>
@@ -59,11 +63,15 @@
           <label>Prioridade<select id="fPriority"></select></label>
           <label>Origem<select id="fSource"></select></label>
           <label>Responsável<input id="fResponsible" maxlength="80" placeholder="Vendedor / responsável" /></label>
+          <label>Parceiro / indicação<select id="fPartner"></select></label>
           <label class="span-2">Produto / serviço<input id="fService" maxlength="140" placeholder="Ex.: Porta em ACM + painel ripado" /></label>
           <label>Valor estimado (R$)<input id="fValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+          <label>Contrato / pedido<input id="fContractNumber" maxlength="80" placeholder="Ex.: CT-2026-017" /></label>
           <label>Próximo retorno<input id="fFollowUp" type="date" /></label>
           <label>Data da medição<input id="fMeasurement" type="date" /></label>
           <label>Data da instalação<input id="fInstallation" type="date" /></label>
+          <label id="closedAtField">Data de fechamento<input id="fClosedAt" type="date" aria-describedby="closedAtHint" /><small class="form-hint" id="closedAtHint">Usada nos relatórios mensais, trimestrais e anuais.</small></label>
+          <label class="span-2">Link do contrato (opcional)<input id="fContractUrl" type="url" maxlength="500" placeholder="https://..." /></label>
           <label>Cidade<input id="fCity" maxlength="80" placeholder="Cidade" /></label>
           <label>Bairro<input id="fNeighborhood" maxlength="80" placeholder="Bairro" /></label>
           <label class="span-2">Endereço<input id="fAddress" maxlength="180" autocomplete="street-address" placeholder="Rua, número, complemento" /></label>
@@ -74,8 +82,37 @@
           <button type="button" class="danger-btn hidden" id="deleteClientBtn">Excluir</button>
           <div class="modal-footer-right">
             <button type="button" class="secondary-btn" id="cancelModalBtn">Cancelar</button>
+            <button type="button" class="secondary-btn hidden" id="clientReportBtn">⇩ Relatório PDF</button>
+            <a class="secondary-btn hidden" id="contractBtn" target="_blank" rel="noreferrer">↗ Contrato</a>
             <a class="secondary-btn hidden" id="whatsappBtn" target="_blank" rel="noreferrer">WhatsApp</a>
             <button type="submit" class="primary-btn">Salvar cliente</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="partnerModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="partnerModalTitle" aria-describedby="partnerModalDescription">
+      <div class="modal-header">
+        <div><h2 id="partnerModalTitle">Novo parceiro</h2><p id="partnerModalDescription">Registre parceiros e acompanhe as indicações vinculadas.</p></div>
+        <button type="button" class="icon-btn" id="closePartnerModalBtn" aria-label="Fechar formulário">✕</button>
+      </div>
+      <form id="partnerForm">
+        <div class="form-grid">
+          <label class="span-2">Nome do parceiro<input id="pName" required maxlength="120" placeholder="Ex.: Ana Silva Arquitetura" /></label>
+          <label>Tipo<select id="pType"></select></label>
+          <label>WhatsApp<input id="pPhone" inputmode="tel" maxlength="20" placeholder="(27) 99999-9999" /></label>
+          <label>E-mail<input id="pEmail" type="email" maxlength="160" placeholder="contato@email.com" /></label>
+          <label>Cidade<input id="pCity" maxlength="80" placeholder="Cidade" /></label>
+          <label class="span-2">Observações<textarea id="pNotes" rows="4" maxlength="2000" placeholder="Especialidade, região atendida, acordo comercial, preferências..."></textarea></label>
+        </div>
+        <section class="partner-referrals hidden" id="partnerReferrals" aria-labelledby="partnerReferralsTitle"></section>
+        <div class="modal-footer">
+          <button type="button" class="danger-btn hidden" id="deletePartnerBtn">Excluir</button>
+          <div class="modal-footer-right">
+            <button type="button" class="secondary-btn" id="cancelPartnerModalBtn">Cancelar</button>
+            <button type="submit" class="primary-btn">Salvar parceiro</button>
           </div>
         </div>
       </form>
@@ -85,6 +122,7 @@
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
   <script src="./config.js"></script>
+  <script src="./pdf-generator.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

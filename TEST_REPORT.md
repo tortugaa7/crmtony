@@ -15,6 +15,14 @@ Versão validada: estabilizada para publicação estática.
   - geração de backup;
   - importação que substitui a base após confirmação;
   - atualização entre abas pelo evento de armazenamento.
+- Validação adicional da versão de relatórios:
+  - cadastro de parceiro e vínculo de indicação com o cliente;
+  - contrato/pedido e data de fechamento;
+  - venda de julho apresentada em julho, no trimestre e no ano correspondentes;
+  - venda de julho ausente do resultado de agosto;
+  - alerta para venda sem data de fechamento;
+  - PDF do período e PDF individual do cliente, ambos validados como PDF A4 e renderizados para inspeção visual;
+  - histórico do parceiro com indicação, contrato, data de fechamento e valor.
 
 ## Limite conhecido
 

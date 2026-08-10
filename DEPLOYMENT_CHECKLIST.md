@@ -6,6 +6,7 @@
 - [ ] Não envie backups reais (`.json`) de clientes para um repositório público.
 - [ ] Abra `config.js` e confirme o nome, as origens e a mensagem do WhatsApp.
 - [ ] Abra o CRM localmente, cadastre um cliente de teste e exporte um backup.
+- [ ] Cadastre um parceiro de teste, vincule-o ao cliente e preencha data de fechamento e contrato.
 
 ## Na Vercel
 
@@ -15,6 +16,8 @@
 - [ ] Faça o deploy.
 - [ ] Abra a URL final no computador e no celular.
 - [ ] Faça um cadastro de teste, edite a etapa e confira o histórico.
+- [ ] Confira uma venda em um mês, no trimestre e no ano corretos.
+- [ ] Baixe o relatório do período e o PDF individual do cliente.
 
 ## Depois da publicação
 
@@ -22,6 +25,7 @@
 - [ ] Defina uma rotina semanal de backup.
 - [ ] Oriente a equipe que os dados não são compartilhados entre dispositivos nesta versão.
 - [ ] Antes de qualquer importação, exporte o backup atual.
+- [ ] Oriente a equipe a preencher a data real de fechamento antes de usar os relatórios.
 
 ## Se algo parecer errado
 

@@ -7,6 +7,14 @@ window.CRM_CONFIG = {
   whatsappGreeting: 'Olá{name}! Tudo bem? Aqui é da Tony Acabamentos.',
   maxHistoryEntries: 40,
   backupFilePrefix: 'tony-crm-backup',
+  reportFilePrefix: 'relatorio-tony-crm',
+  closedStageId: 'closed',
+  partnerStorageKey: 'tony_crm_partners_v1',
+  partnerTypes: [
+    { id: 'architect', label: 'Arquiteto(a)' },
+    { id: 'builder', label: 'Construtor(a)' },
+    { id: 'other', label: 'Outro parceiro' }
+  ],
   sources: ['WhatsApp', 'Instagram', 'Tráfego pago', 'Indicação', 'Cliente antigo', 'Orgânico', 'Outro'],
   priorities: [
     { id: 'low', label: 'Baixa' },
