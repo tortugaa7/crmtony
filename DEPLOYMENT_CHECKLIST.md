@@ -18,6 +18,8 @@
 - [ ] Faça um cadastro de teste, edite a etapa e confira o histórico.
 - [ ] Confira uma venda em um mês, no trimestre e no ano corretos.
 - [ ] Baixe o relatório do período e o PDF individual do cliente.
+- [ ] Informe uma data de instalação / entrega próxima e confirme que o cliente pisca no funil e aparece em **Urgências**.
+- [ ] Abra o sino no topo, confira os retornos e ative os avisos na área de trabalho, se desejado.
 
 ## Depois da publicação
 

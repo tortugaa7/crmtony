@@ -15,6 +15,7 @@
       <div class="brand" aria-label="Tony CRM"><div class="brand-mark" aria-hidden="true">T</div><div class="brand-copy"><strong>TONY</strong><span>CRM</span></div></div>
       <nav aria-label="Navegação principal">
         <button type="button" class="nav-btn active" data-view="dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>Visão geral</span></button>
+        <button type="button" class="nav-btn" data-view="urgencies"><span class="nav-icon" aria-hidden="true">⚠</span><span>Urgências</span></button>
         <button type="button" class="nav-btn" data-view="pipeline"><span class="nav-icon" aria-hidden="true">▦</span><span>Funil</span></button>
         <button type="button" class="nav-btn" data-view="clients"><span class="nav-icon" aria-hidden="true">👤</span><span>Clientes</span></button>
         <button type="button" class="nav-btn" data-view="partners"><span class="nav-icon" aria-hidden="true">⌘</span><span>Parceiros</span></button>
@@ -34,12 +35,17 @@
         <div><h1 id="pageTitle">Visão geral</h1><p id="pageSubtitle">Acompanhe o comercial e a operação em um só lugar.</p></div>
         <div class="topbar-actions">
           <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar cliente</span><input id="searchInput" type="search" autocomplete="off" placeholder="Buscar cliente, telefone, cidade..." /></label>
+          <div class="notification-area" id="notificationArea">
+            <button type="button" class="notification-btn" id="notificationBtn" aria-label="Abrir notificações" aria-expanded="false" aria-controls="notificationPanel"><span aria-hidden="true">🔔</span><span class="notification-badge hidden" id="notificationBadge">0</span></button>
+            <section class="notification-panel hidden" id="notificationPanel" aria-label="Notificações de prazos"></section>
+          </div>
           <button type="button" class="primary-btn" id="newClientBtn">＋ Novo cliente</button>
         </div>
       </header>
 
       <section class="content-area">
         <div id="dashboardView" class="view"></div>
+        <div id="urgenciesView" class="view hidden"></div>
         <div id="pipelineView" class="view hidden"></div>
         <div id="clientsView" class="view hidden"></div>
         <div id="partnersView" class="view hidden"></div>
@@ -69,7 +75,7 @@
           <label>Contrato / pedido<input id="fContractNumber" maxlength="80" placeholder="Ex.: CT-2026-017" /></label>
           <label>Próximo retorno<input id="fFollowUp" type="date" /></label>
           <label>Data da medição<input id="fMeasurement" type="date" /></label>
-          <label>Data da instalação<input id="fInstallation" type="date" /></label>
+          <label>Data da instalação / entrega<input id="fInstallation" type="date" /></label>
           <label id="closedAtField">Data de fechamento<input id="fClosedAt" type="date" aria-describedby="closedAtHint" /><small class="form-hint" id="closedAtHint">Usada nos relatórios mensais, trimestrais e anuais.</small></label>
           <label class="span-2">Link do contrato (opcional)<input id="fContractUrl" type="url" maxlength="500" placeholder="https://..." /></label>
           <label>Cidade<input id="fCity" maxlength="80" placeholder="Cidade" /></label>

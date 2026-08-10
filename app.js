@@ -29,6 +29,12 @@
   const BACKUP_VERSION = 3;
   const MAX_HISTORY_ENTRIES = Number.isFinite(Number(CONFIG.maxHistoryEntries)) ? Math.max(10, Number(CONFIG.maxHistoryEntries)) : 40;
   const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+  const INSTALLATION_URGENCY_DAYS = Number.isFinite(Number(CONFIG.installationUrgencyDays))
+    ? Math.min(30, Math.max(1, Math.floor(Number(CONFIG.installationUrgencyDays))))
+    : 3;
+  const RETURN_NOTIFICATION_DAYS = Number.isFinite(Number(CONFIG.returnNotificationDays))
+    ? Math.min(30, Math.max(1, Math.floor(Number(CONFIG.returnNotificationDays))))
+    : 3;
   const dateFormatter = new Intl.DateTimeFormat('pt-BR');
   const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   const moneyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -41,6 +47,12 @@
   const stageById = new Map(STAGES.map(stage => [stage.id, stage]));
   const priorityById = new Map(PRIORITIES.map(priority => [priority.id, priority]));
   const partnerTypeById = new Map(PARTNER_TYPES.map(type => [type.id, type]));
+  const standardUrgencyRanks = new Map([
+    ['urgent', 0],
+    ['high', 1],
+    ['medium', 2],
+    ['low', 3]
+  ]);
   const stageGroups = Array.from(new Set(STAGES.map(stage => stage.group || 'Fluxo')));
   const DEFAULT_STAGE_ID = STAGES[0].id;
   const DEFAULT_PRIORITY_ID = priorityById.has('medium') ? 'medium' : PRIORITIES[0].id;
@@ -48,6 +60,7 @@
   const DEFAULT_SOURCE = SOURCES[0] || 'Outro';
   const CLOSED_STAGE_ID = stageById.has(CONFIG.closedStageId) ? CONFIG.closedStageId : (stageById.has('closed') ? 'closed' : STAGES[STAGES.length - 1].id);
   const CLOSED_STAGE_INDEX = STAGES.findIndex(stage => stage.id === CLOSED_STAGE_ID);
+  const NOTIFICATION_STORAGE_KEY = CONFIG.notificationStorageKey || 'tony_crm_notifications_v1';
 
   let clients = loadInitialClients();
   let partners = loadInitialPartners();
@@ -61,6 +74,8 @@
   let storageWarningShown = false;
   let partnerFilter = 'all';
   let reportPeriod = createDefaultPeriod();
+  let notificationPanelOpen = false;
+  let deliveredDesktopNotificationKeys = loadDesktopNotificationKeys();
 
   function escapeHTML(value) {
     return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
@@ -549,14 +564,275 @@
     return 'upcoming';
   }
 
+  function urgencyRank(priorityId) {
+    if (standardUrgencyRanks.has(priorityId)) return standardUrgencyRanks.get(priorityId);
+    const configuredIndex = PRIORITIES.findIndex(priority => priority.id === priorityId);
+    return configuredIndex >= 0 ? PRIORITIES.length - configuredIndex - 1 : PRIORITIES.length;
+  }
+
+  function daysUntilDate(value) {
+    if (!isValidDate(value)) return null;
+    const [targetYear, targetMonth, targetDay] = value.split('-').map(Number);
+    const [todayYear, todayMonth, todayDay] = localDateKey().split('-').map(Number);
+    const target = Date.UTC(targetYear, targetMonth - 1, targetDay);
+    const today = Date.UTC(todayYear, todayMonth - 1, todayDay);
+    return Math.round((target - today) / 86_400_000);
+  }
+
+  function deadlineState(value, alertWindowDays) {
+    const days = daysUntilDate(value);
+    if (days === null) return { state: 'none', days: null };
+    if (days < 0) return { state: 'overdue', days };
+    if (days === 0) return { state: 'today', days };
+    if (days <= alertWindowDays) return { state: 'upcoming', days };
+    return { state: 'none', days };
+  }
+
+  function deadlineMessage(label, deadline) {
+    if (deadline.state === 'overdue') {
+      const days = Math.abs(deadline.days);
+      return `Prazo de ${label} vencido há ${days} dia${days === 1 ? '' : 's'}.`;
+    }
+    if (deadline.state === 'today') return `Prazo de ${label} é hoje.`;
+    return `Prazo de ${label} vence em ${deadline.days} dia${deadline.days === 1 ? '' : 's'}.`;
+  }
+
+  function clientUrgencyInfo(client) {
+    const installation = deadlineState(client.installationDate, INSTALLATION_URGENCY_DAYS);
+    const followUp = deadlineState(client.followUp, RETURN_NOTIFICATION_DAYS);
+    const reasons = [];
+    const deadlineRanks = {
+      installation: { overdue: 0, today: 2, upcoming: 4 },
+      followUp: { overdue: 1, today: 3, upcoming: 5 }
+    };
+
+    if (installation.state !== 'none') {
+      reasons.push({
+        type: 'installation',
+        state: installation.state,
+        date: client.installationDate,
+        days: installation.days,
+        rank: deadlineRanks.installation[installation.state],
+        message: deadlineMessage('instalação / entrega', installation)
+      });
+    }
+    if (followUp.state !== 'none') {
+      reasons.push({
+        type: 'follow-up',
+        state: followUp.state,
+        date: client.followUp,
+        days: followUp.days,
+        rank: deadlineRanks.followUp[followUp.state],
+        message: deadlineMessage('retorno', followUp)
+      });
+    }
+    if (urgencyRank(client.priority) === 0) {
+      reasons.push({
+        type: 'priority',
+        state: 'manual',
+        date: '',
+        days: null,
+        rank: 6,
+        message: 'Prioridade marcada como urgente.'
+      });
+    }
+
+    const orderedReasons = reasons.sort((a, b) => a.rank - b.rank);
+    const primaryReason = orderedReasons[0] || null;
+    const nearestDeadline = orderedReasons.find(reason => reason.date)?.date || '';
+    return {
+      client,
+      installation,
+      followUp,
+      reasons: orderedReasons,
+      primaryReason,
+      hasAutomaticDeadline: orderedReasons.some(reason => reason.type !== 'priority'),
+      rank: primaryReason ? primaryReason.rank : 6 + urgencyRank(client.priority),
+      nearestDeadline
+    };
+  }
+
+  function urgencyItems() {
+    return clients.map(clientUrgencyInfo)
+      .filter(info => info.reasons.length)
+      .sort((a, b) => {
+        if (a.rank !== b.rank) return a.rank - b.rank;
+        const aDate = a.nearestDeadline || '9999-12-31';
+        const bDate = b.nearestDeadline || '9999-12-31';
+        if (aDate !== bDate) return aDate.localeCompare(bDate);
+        return a.client.name.localeCompare(b.client.name, 'pt-BR');
+      });
+  }
+
+  function pipelineClientComparator(a, b) {
+    const aInfo = clientUrgencyInfo(a);
+    const bInfo = clientUrgencyInfo(b);
+    if (aInfo.rank !== bInfo.rank) return aInfo.rank - bInfo.rank;
+
+    const aFollowUp = isValidDate(a.followUp) ? a.followUp : '9999-12-31';
+    const bFollowUp = isValidDate(b.followUp) ? b.followUp : '9999-12-31';
+    if (aFollowUp !== bFollowUp) return aFollowUp.localeCompare(bFollowUp);
+
+    const updatedDifference = String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || ''));
+    if (updatedDifference) return updatedDifference;
+    return a.name.localeCompare(b.name, 'pt-BR');
+  }
+
+  function loadDesktopNotificationKeys() {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(NOTIFICATION_STORAGE_KEY) || '[]');
+      return new Set(Array.isArray(stored) ? stored.filter(value => typeof value === 'string').slice(-120) : []);
+    } catch (error) {
+      return new Set();
+    }
+  }
+
+  function persistDesktopNotificationKeys() {
+    try {
+      window.localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify([...deliveredDesktopNotificationKeys].slice(-120)));
+    } catch (error) {
+      console.warn('Não foi possível registrar as notificações exibidas.', error);
+    }
+  }
+
+  function desktopNotificationKey(info) {
+    return `${info.client.id}:${info.reasons.filter(reason => reason.type !== 'priority').map(reason => `${reason.type}:${reason.state}:${reason.date}`).join('|')}`;
+  }
+
+  function browserNotificationPermission() {
+    return 'Notification' in window ? window.Notification.permission : 'unsupported';
+  }
+
+  function maybeSendDesktopNotifications() {
+    if (browserNotificationPermission() !== 'granted') return;
+    const pending = urgencyItems()
+      .filter(info => info.hasAutomaticDeadline)
+      .filter(info => !deliveredDesktopNotificationKeys.has(desktopNotificationKey(info)))
+      .slice(0, 3);
+    let changed = false;
+    pending.forEach(info => {
+      const key = desktopNotificationKey(info);
+      try {
+        const notification = new window.Notification(info.primaryReason?.state === 'overdue' ? 'Prazo vencido — Tony CRM' : 'Prazo próximo — Tony CRM', {
+          body: `${info.client.name}: ${info.reasons.filter(reason => reason.type !== 'priority').map(reason => reason.message).join(' ')}`,
+          tag: `tony-crm-${key}`
+        });
+        notification.onclick = () => {
+          window.focus?.();
+          openClient(info.client.id);
+          notification.close?.();
+        };
+        deliveredDesktopNotificationKeys.add(key);
+        changed = true;
+      } catch (error) {
+        console.warn('Não foi possível mostrar a notificação na área de trabalho.', error);
+      }
+    });
+    if (changed) persistDesktopNotificationKeys();
+  }
+
+  function requestDesktopNotifications() {
+    if (!('Notification' in window)) {
+      showToast('Este navegador não oferece notificações na área de trabalho.', 'error');
+      return;
+    }
+    if (window.Notification.permission === 'granted') {
+      maybeSendDesktopNotifications();
+      return;
+    }
+    if (window.Notification.permission === 'denied') {
+      showToast('As notificações estão bloqueadas nas permissões do navegador.', 'error');
+      return;
+    }
+    const handlePermission = permission => {
+      renderNotificationCenter();
+      if (permission === 'granted') {
+        maybeSendDesktopNotifications();
+        showToast('Avisos na área de trabalho ativados.');
+      } else {
+        showToast('Você pode ativar os avisos depois nas permissões do navegador.', 'error');
+      }
+    };
+    try {
+      const request = window.Notification.requestPermission();
+      if (request?.then) request.then(handlePermission).catch(() => handlePermission('denied'));
+      else handlePermission(request);
+    } catch (error) {
+      handlePermission('denied');
+    }
+  }
+
+  function notificationItemHtml(info) {
+    const reason = info.primaryReason;
+    const stage = stageInfo(info.client.stage);
+    return `<button type="button" class="notification-item ${escapeHTML(reason?.state || 'manual')}" data-open-notification-client="${escapeHTML(info.client.id)}"><span class="notification-state">${reason?.state === 'overdue' ? '!' : reason?.state === 'today' ? 'Hoje' : reason?.state === 'upcoming' ? 'Em breve' : 'Urgente'}</span><span class="notification-copy"><strong>${escapeHTML(info.client.name)}</strong><small>${escapeHTML(reason?.message || 'Prioridade urgente.')} · ${escapeHTML(stage.short || stage.label)}</small></span><span class="notification-date">${reason?.date ? dateBR(reason.date) : ''}</span></button>`;
+  }
+
+  function renderNotificationCenter() {
+    const button = $('notificationBtn');
+    const badge = $('notificationBadge');
+    const panel = $('notificationPanel');
+    if (!button || !badge || !panel) return;
+    const items = urgencyItems();
+    const count = items.length;
+    badge.textContent = count > 99 ? '99+' : String(count);
+    badge.classList.toggle('hidden', !count);
+    button.classList.toggle('has-alerts', Boolean(count));
+    button.setAttribute('aria-label', count ? `Abrir notificações: ${count} urgência(s)` : 'Abrir notificações');
+    button.setAttribute('aria-expanded', String(notificationPanelOpen));
+    if (!notificationPanelOpen) {
+      panel.classList.add('hidden');
+      panel.innerHTML = '';
+      return;
+    }
+
+    panel.classList.remove('hidden');
+    const permission = browserNotificationPermission();
+    const notificationAction = permission === 'default'
+      ? '<button type="button" class="secondary-btn notification-browser-action" data-enable-desktop-notifications>Ativar avisos na área de trabalho</button>'
+      : permission === 'granted'
+        ? '<p class="notification-browser-status success">✓ Avisos na área de trabalho ativos enquanto o CRM estiver aberto.</p>'
+        : permission === 'denied'
+          ? '<p class="notification-browser-status">Os avisos do navegador estão bloqueados. Você pode liberá-los nas permissões deste site.</p>'
+          : '<p class="notification-browser-status">Avisos na área de trabalho não estão disponíveis neste navegador.</p>';
+    panel.innerHTML = `<div class="notification-panel-heading"><div><strong>Notificações</strong><span>${count ? `${count} cliente${count === 1 ? '' : 's'} pedem atenção` : 'Tudo em dia'}</span></div><button type="button" class="icon-btn" data-close-notifications aria-label="Fechar notificações">✕</button></div>${items.length ? `<div class="notification-list">${items.map(notificationItemHtml).join('')}</div>` : '<div class="notification-empty"><strong>Nenhuma urgência agora.</strong><span>Retornos e instalações próximos aparecerão aqui automaticamente.</span></div>'}<div class="notification-panel-footer">${notificationAction}<button type="button" class="text-btn" data-open-urgencies>Abrir aba de urgências</button></div>`;
+    panel.querySelectorAll('[data-open-notification-client]').forEach(item => item.addEventListener('click', () => {
+      notificationPanelOpen = false;
+      renderNotificationCenter();
+      openClient(item.dataset.openNotificationClient);
+    }));
+    panel.querySelector('[data-close-notifications]')?.addEventListener('click', () => {
+      notificationPanelOpen = false;
+      renderNotificationCenter();
+    });
+    panel.querySelector('[data-enable-desktop-notifications]')?.addEventListener('click', requestDesktopNotifications);
+    panel.querySelector('[data-open-urgencies]')?.addEventListener('click', () => {
+      notificationPanelOpen = false;
+      currentView = 'urgencies';
+      render();
+    });
+  }
+
+  function renderUrgencies() {
+    const items = urgencyItems();
+    const overdue = items.filter(info => info.reasons.some(reason => reason.state === 'overdue')).length;
+    const installationAlerts = items.filter(info => info.installation.state !== 'none').length;
+    $('urgenciesView').innerHTML = `<section class="urgency-hero"><div><span class="section-kicker">FILA AUTOMÁTICA</span><h2>Urgências de atendimento e entrega</h2><p>Entram aqui automaticamente os retornos próximos ou vencidos e as instalações / entregas com prazo de até ${INSTALLATION_URGENCY_DAYS} dias.</p></div><div class="urgency-stats"><span><strong>${items.length}</strong> em atenção</span><span><strong>${overdue}</strong> vencido(s)</span><span><strong>${installationAlerts}</strong> instalação / entrega</span></div></section>${items.length ? `<section class="urgency-list-panel" aria-label="Clientes em urgência"><div class="urgency-list">${items.map(info => {
+      const stage = stageInfo(info.client.stage);
+      return `<button type="button" class="urgency-row ${escapeHTML(info.primaryReason?.state || 'manual')}" data-open-urgency-client="${escapeHTML(info.client.id)}"><span class="urgency-row-marker">${info.primaryReason?.state === 'overdue' ? '!' : info.primaryReason?.state === 'today' ? 'Hoje' : info.primaryReason?.state === 'upcoming' ? '⏱' : '!'}</span><span class="urgency-row-copy"><strong>${escapeHTML(info.client.name)}</strong><small>${escapeHTML(stage.label)} · ${escapeHTML(info.client.service || 'Serviço não informado')}</small><em>${info.reasons.map(reason => escapeHTML(reason.message)).join(' ')}</em></span><span class="urgency-row-date">${info.primaryReason?.date ? dateBR(info.primaryReason.date) : priorityInfo(info.client.priority).label}</span></button>`;
+    }).join('')}</div></section>` : '<div class="empty-state"><strong>Nenhuma urgência no momento.</strong><span>Clientes com retorno vencido, retorno próximo ou instalação / entrega em até alguns dias aparecerão automaticamente aqui.</span></div>'}`;
+    $('urgenciesView').querySelectorAll('[data-open-urgency-client]').forEach(button => button.addEventListener('click', () => openClient(button.dataset.openUrgencyClient)));
+  }
+
   function render() {
-    if (!['dashboard', 'pipeline', 'clients', 'partners', 'reports'].includes(currentView)) currentView = 'dashboard';
+    if (!['dashboard', 'urgencies', 'pipeline', 'clients', 'partners', 'reports'].includes(currentView)) currentView = 'dashboard';
     document.querySelectorAll('.view').forEach(view => view.classList.add('hidden'));
     $(`${currentView}View`).classList.remove('hidden');
     document.querySelectorAll('.nav-btn').forEach(button => button.classList.toggle('active', button.dataset.view === currentView));
 
     const titles = {
       dashboard: ['Visão geral', 'Resultados por período e visão operacional em um só lugar.'],
+      urgencies: ['Urgências', 'Prazos de retorno, instalação e entrega que pedem ação.'],
       pipeline: ['Funil de clientes', 'Arraste os cartões para atualizar a etapa do cliente.'],
       clients: ['Clientes', 'Lista completa com busca e acompanhamento.'],
       partners: ['Parceiros e indicações', 'Arquitetos, construtores e outros parceiros vinculados aos clientes.'],
@@ -571,10 +847,12 @@
     $('searchInput').closest('.search-box').classList.toggle('is-disabled', !searchEnabled);
 
     if (currentView === 'dashboard') renderDashboard();
+    if (currentView === 'urgencies') renderUrgencies();
     if (currentView === 'pipeline') renderPipeline();
     if (currentView === 'clients') renderClients();
     if (currentView === 'partners') renderPartners();
     if (currentView === 'reports') renderReports();
+    renderNotificationCenter();
   }
 
   function periodControlsHtml() {
@@ -823,9 +1101,9 @@
     if (!stageGroups.includes(pipelineGroup)) pipelineGroup = stageGroups[0];
     const stages = STAGES.filter(stage => (stage.group || 'Fluxo') === pipelineGroup);
     $('pipelineView').innerHTML = `
-      <div class="segmented" aria-label="Escolher área do funil">${stageGroups.map(group => `<button type="button" data-group="${escapeHTML(group)}" class="${pipelineGroup === group ? 'active' : ''}">${escapeHTML(group === 'Operação' ? 'Produção e instalação' : group)}</button>`).join('')}</div>
+      <div class="pipeline-toolbar"><div class="segmented" aria-label="Escolher área do funil">${stageGroups.map(group => `<button type="button" data-group="${escapeHTML(group)}" class="${pipelineGroup === group ? 'active' : ''}">${escapeHTML(group === 'Operação' ? 'Produção e instalação' : group)}</button>`).join('')}</div><p class="pipeline-order-note">Mais urgente no topo: <strong>prazos críticos → Urgente → Alta → Média → Baixa</strong></p></div>
       <div class="pipeline-wrap">${stages.map(stage => {
-        const list = data.filter(client => client.stage === stage.id);
+        const list = data.filter(client => client.stage === stage.id).sort(pipelineClientComparator);
         return `<section class="pipeline-column" data-drop-stage="${escapeHTML(stage.id)}"><div class="column-header"><div><strong>${escapeHTML(stage.short || stage.label)}</strong><span>${list.length} cliente${list.length === 1 ? '' : 's'}</span></div><em>${money(list.reduce((sum, client) => sum + Number(client.value || 0), 0))}</em></div><div class="column-body">${list.length ? list.map(clientCard).join('') : '<div class="empty-column">Arraste um cliente para cá</div>'}</div></section>`;
       }).join('')}</div>`;
 
@@ -846,7 +1124,10 @@
     const whatsapp = whatsappLink(client);
     const priority = priorityInfo(client.priority);
     const partner = partnerById(client.partnerId);
-    return `<article class="client-card priority-${escapeHTML(client.priority)}" draggable="true" data-id="${escapeHTML(client.id)}" tabindex="0" aria-label="Abrir cliente ${escapeHTML(client.name)}"><div class="card-top"><div><strong>${escapeHTML(client.name)}</strong><span>${escapeHTML(client.service || 'Sem serviço informado')}</span></div><span class="priority-dot ${escapeHTML(client.priority)}" title="Prioridade ${escapeHTML(priority.label)}">${priorityMark(client.priority)}</span></div>${client.phone ? `<div class="card-line">☎ ${escapeHTML(client.phone)}</div>` : ''}${partner ? `<div class="card-line">⌘ ${escapeHTML(partner.name)}</div>` : ''}${location ? `<div class="card-line">⌖ ${escapeHTML(location)}</div>` : ''}${client.followUp ? `<div class="card-line reminder-${reminder}">◷ ${reminder === 'overdue' ? 'Retorno vencido: ' : reminder === 'today' ? 'Retorno hoje: ' : 'Retorno: '}${dateBR(client.followUp)}</div>` : ''}<div class="card-footer"><span class="value">${hasValue(client.value) ? money(client.value) : 'Sem valor'}</span>${whatsapp ? `<a class="wa-link" href="${escapeHTML(whatsapp)}" target="_blank" rel="noreferrer" aria-label="Abrir WhatsApp de ${escapeHTML(client.name)}">W</a>` : ''}</div></article>`;
+    const urgency = clientUrgencyInfo(client);
+    const installationAlert = urgency.installation.state !== 'none';
+    const installationMessage = installationAlert ? deadlineMessage('instalação / entrega', urgency.installation) : '';
+    return `<article class="client-card priority-${escapeHTML(client.priority)}${installationAlert ? ` installation-alert installation-${escapeHTML(urgency.installation.state)}` : ''}" draggable="true" data-id="${escapeHTML(client.id)}" tabindex="0" aria-label="Abrir cliente ${escapeHTML(client.name)}${installationMessage ? `. ${escapeHTML(installationMessage)}` : ''}"><div class="card-top"><div><strong>${escapeHTML(client.name)}</strong><span>${escapeHTML(client.service || 'Sem serviço informado')}</span></div><span class="priority-dot ${escapeHTML(client.priority)}" title="Prioridade ${escapeHTML(priority.label)}">${priorityMark(client.priority)}</span></div>${client.phone ? `<div class="card-line">☎ ${escapeHTML(client.phone)}</div>` : ''}${partner ? `<div class="card-line">⌘ ${escapeHTML(partner.name)}</div>` : ''}${location ? `<div class="card-line">⌖ ${escapeHTML(location)}</div>` : ''}${client.followUp ? `<div class="card-line reminder-${reminder}">◷ ${reminder === 'overdue' ? 'Retorno vencido: ' : reminder === 'today' ? 'Retorno hoje: ' : 'Retorno: '}${dateBR(client.followUp)}</div>` : ''}${installationAlert ? `<div class="card-line installation-deadline ${escapeHTML(urgency.installation.state)}">⚠ ${escapeHTML(installationMessage)} (${dateBR(client.installationDate)})</div>` : ''}<div class="card-footer"><span class="value">${hasValue(client.value) ? money(client.value) : 'Sem valor'}</span>${whatsapp ? `<a class="wa-link" href="${escapeHTML(whatsapp)}" target="_blank" rel="noreferrer" aria-label="Abrir WhatsApp de ${escapeHTML(client.name)}">W</a>` : ''}</div></article>`;
   }
 
   function setupPipelineDragAndDrop() {
@@ -1401,6 +1682,17 @@
       if (event.target === $('partnerModal')) closePartnerModal();
     });
     $('newClientBtn').addEventListener('click', () => openClient());
+    $('notificationBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      notificationPanelOpen = !notificationPanelOpen;
+      renderNotificationCenter();
+    });
+    document.addEventListener('click', event => {
+      if (notificationPanelOpen && !event.target.closest('#notificationArea')) {
+        notificationPanelOpen = false;
+        renderNotificationCenter();
+      }
+    });
     $('searchInput').addEventListener('input', event => {
       searchTerm = event.target.value;
       render();
@@ -1420,9 +1712,15 @@
     $('exportBtn').addEventListener('click', exportBackup);
     $('importInput').addEventListener('change', importBackup);
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !$('partnerModal').classList.contains('hidden')) closePartnerModal();
+      if (event.key === 'Escape' && notificationPanelOpen) {
+        notificationPanelOpen = false;
+        renderNotificationCenter();
+      } else if (event.key === 'Escape' && !$('partnerModal').classList.contains('hidden')) closePartnerModal();
       else if (event.key === 'Escape' && !$('clientModal').classList.contains('hidden')) closeModal();
       trapFocus(event);
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') maybeSendDesktopNotifications();
     });
     window.addEventListener('storage', event => {
       if (event.key === STORAGE_KEY) {
@@ -1430,6 +1728,7 @@
         if (!incoming) return;
         clients = incoming;
         render();
+        maybeSendDesktopNotifications();
         showToast('Os clientes foram atualizados em outra aba.', 'success');
       }
       if (event.key === PARTNER_STORAGE_KEY) {
@@ -1451,6 +1750,7 @@
     updateSidebarState();
     bindEvents();
     render();
+    maybeSendDesktopNotifications();
   }
 
   init();

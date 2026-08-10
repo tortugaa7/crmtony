@@ -10,7 +10,9 @@ CRM interno da Tony Acabamentos para acompanhar o cliente desde o primeiro conta
 - Dashboard com resultados fechados, visão operacional atual e retornos que exigem atenção.
 - Dashboard mensal, trimestral e anual com resultados separados pelo período escolhido.
 - Vendas contabilizadas pela data de fechamento, sem misturar faturamento de meses diferentes.
-- Kanban com arrastar e soltar para avançar clientes de etapa.
+- Kanban com arrastar e soltar, ordenado automaticamente pela urgência em cada coluna.
+- Aba **Urgências** para retornos próximos/vencidos, instalações e entregas próximas do prazo.
+- Central de notificações com aviso na área de trabalho quando permitido no navegador.
 - Cadastro, edição e exclusão de clientes.
 - Histórico automático de criação, mudanças de etapa e data de fechamento.
 - Data de fechamento, número/link de contrato e parceiro de indicação por cliente.
@@ -34,6 +36,15 @@ CRM interno da Tony Acabamentos para acompanhar o cliente desde o primeiro conta
 7. Produção finalizada / aguardando instalação
 8. Em instalação
 9. Pós-venda
+
+## Urgências, prazos e notificações
+
+- Dentro de cada coluna do **Funil**, a ordem considera primeiro os prazos críticos e depois a prioridade: **Urgente → Alta → Média → Baixa**.
+- Clientes com **Data da instalação / entrega** vencida ou dentro dos próximos **3 dias** piscam no funil e entram automaticamente na aba **Urgências**.
+- Retornos vencidos, de hoje ou dos próximos 3 dias também entram na central e na aba de urgências.
+- Clique no sino no topo e escolha **Ativar avisos na área de trabalho** para receber notificações do navegador enquanto o CRM estiver aberto em uma aba. A permissão pode ser alterada depois nas configurações do navegador.
+
+O período de 3 dias pode ser ajustado em `config.js` por `installationUrgencyDays` e `returnNotificationDays`.
 
 ## Como os resultados por período funcionam
 
@@ -81,6 +92,7 @@ Isso torna o CRM simples de subir e usar sozinho, mas também significa que:
 - Use **Exportar backup** frequentemente e guarde o arquivo JSON fora do navegador.
 - O backup inclui clientes, parceiros, contratos cadastrados e históricos; ele não baixa arquivos anexados em links externos.
 - Não use aba anônima para operar o CRM.
+- Avisos na área de trabalho funcionam enquanto o CRM permanece aberto em uma aba; para avisos com o navegador totalmente fechado seria necessário um serviço de notificações com servidor.
 
 Para uso simultâneo por uma equipe, a evolução correta é adicionar banco de dados e login reais, por exemplo com Supabase/Postgres. Não há login “de aparência” nesta versão.
 
@@ -92,6 +104,7 @@ Use somente o arquivo [config.js](./config.js) para alterar:
 - Mensagem inicial do WhatsApp.
 - Origens de lead.
 - Prioridades.
+- Quantidade de dias para alertas de retorno e instalação / entrega.
 - Nomes, ordem e grupos das etapas.
 - Tipos de parceiros.
 

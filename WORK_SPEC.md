@@ -17,6 +17,8 @@ Operação: Aguardando medição → Em produção → Produção finalizada/agu
 8. Preservar a data de fechamento como fonte dos relatórios mensal, trimestral e anual.
 9. Preservar parceiros/indicações, contrato/pedido e relatórios em PDF sem dependência externa.
 10. Não criar segurança fictícia: login e multiusuário só quando houver banco/autenticação reais.
+11. Manter no funil a ordenação de urgência: prazos críticos, depois Urgente, Alta, Média e Baixa.
+12. Manter a aba de urgências automática para retornos e instalações / entregas próximas ou vencidas.
 
 ## Dados e estabilidade
 
@@ -24,6 +26,8 @@ Operação: Aguardando medição → Em produção → Produção finalizada/agu
 - Parceiros usam a chave `tony_crm_partners_v1` e são incluídos no mesmo backup dos clientes.
 - A importação valida clientes e parceiros, descartando registros malformados antes de substituir a base.
 - Fechamentos sem `closedAt` devem ficar fora dos resultados por período até a data real ser registrada.
+- `installationDate` é a data de instalação / entrega e deve disparar urgência quando estiver vencida ou dentro da janela configurada.
+- Avisos de área de trabalho dependem de permissão do navegador e só funcionam enquanto o CRM está aberto em uma aba.
 - Antes de alterar `config.js`, exportar um backup.
 - Não adicionar dependências, build, backend ou integrações simuladas sem uma necessidade explícita.
 

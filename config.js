@@ -8,6 +8,9 @@ window.CRM_CONFIG = {
   maxHistoryEntries: 40,
   backupFilePrefix: 'tony-crm-backup',
   reportFilePrefix: 'relatorio-tony-crm',
+  installationUrgencyDays: 3,
+  returnNotificationDays: 3,
+  notificationStorageKey: 'tony_crm_notifications_v1',
   closedStageId: 'closed',
   partnerStorageKey: 'tony_crm_partners_v1',
   partnerTypes: [

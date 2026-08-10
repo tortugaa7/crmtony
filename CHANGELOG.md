@@ -19,3 +19,10 @@
 - Criados PDFs diretos do período e de cada cliente, sem biblioteca externa ou backend.
 - Adicionados parceiros por tipo, vínculo de indicação no cliente e histórico de indicações, vendas, contratos e valores por parceiro.
 - Adicionados campos de contrato/pedido e link externo de contrato ao cadastro do cliente.
+
+## Urgência e notificações
+
+- Adicionada ordenação automática no funil: prazos críticos, depois Urgente, Alta, Média e Baixa.
+- Criada a aba Urgências, alimentada automaticamente por retornos e prazos de instalação / entrega próximos ou vencidos.
+- Clientes com instalação / entrega em até três dias ou vencida passam a piscar no funil.
+- Adicionada central no topo com contagem de urgências e opção de avisos na área de trabalho do navegador.

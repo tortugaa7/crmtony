@@ -23,6 +23,12 @@ Versão validada: estabilizada para publicação estática.
   - alerta para venda sem data de fechamento;
   - PDF do período e PDF individual do cliente, ambos validados como PDF A4 e renderizados para inspeção visual;
   - histórico do parceiro com indicação, contrato, data de fechamento e valor.
+- Validação de urgência e notificações:
+  - ordenação do funil com prazo de instalação vencido, retorno vencido, instalação próxima e prioridades manualmente definidas;
+  - destaque visual para instalação / entrega vencida ou dentro da janela de alerta;
+  - entrada automática desses clientes na aba **Urgências**;
+  - contador e central de notificações;
+  - solicitação de permissão e disparo controlado de avisos na área de trabalho em ambiente de DOM simulado.
 
 ## Limite conhecido
 
