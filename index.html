@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="description" content="CRM interno da Tony Acabamentos para acompanhar clientes, produção e instalação." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Tony CRM</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand" aria-label="Tony CRM"><div class="brand-mark" aria-hidden="true">T</div><div class="brand-copy"><strong>TONY</strong><span>CRM</span></div></div>
+      <nav aria-label="Navegação principal">
+        <button type="button" class="nav-btn active" data-view="dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>Visão geral</span></button>
+        <button type="button" class="nav-btn" data-view="pipeline"><span class="nav-icon" aria-hidden="true">▦</span><span>Funil</span></button>
+        <button type="button" class="nav-btn" data-view="clients"><span class="nav-icon" aria-hidden="true">👤</span><span>Clientes</span></button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-actions">
+        <button type="button" id="exportBtn"><span class="nav-icon" aria-hidden="true">⇩</span><span>Exportar backup</span></button>
+        <label class="upload-btn"><span class="nav-icon" aria-hidden="true">⇧</span><span>Importar backup</span><input id="importInput" type="file" accept="application/json,.json" /></label>
+        <button type="button" id="collapseBtn"><span class="nav-icon" aria-hidden="true">‹</span><span>Recolher</span></button>
+      </div>
+      <p class="sidebar-data-note"><span aria-hidden="true">●</span> Dados salvos neste navegador</p>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div><h1 id="pageTitle">Visão geral</h1><p id="pageSubtitle">Acompanhe o comercial e a operação em um só lugar.</p></div>
+        <div class="topbar-actions">
+          <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar cliente</span><input id="searchInput" type="search" autocomplete="off" placeholder="Buscar cliente, telefone, cidade..." /></label>
+          <button type="button" class="primary-btn" id="newClientBtn">＋ Novo cliente</button>
+        </div>
+      </header>
+
+      <section class="content-area">
+        <div id="dashboardView" class="view"></div>
+        <div id="pipelineView" class="view hidden"></div>
+        <div id="clientsView" class="view hidden"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="clientModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div class="modal-header">
+        <div><h2 id="modalTitle">Novo cliente</h2><p id="modalDescription">Centralize comercial, produção e instalação.</p></div>
+        <button type="button" class="icon-btn" id="closeModalBtn" aria-label="Fechar formulário">✕</button>
+      </div>
+      <form id="clientForm">
+        <div class="form-grid">
+          <label class="span-2">Nome do cliente<input id="fName" required maxlength="120" autocomplete="name" placeholder="Ex.: João da Silva" /></label>
+          <label>WhatsApp<input id="fPhone" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="(27) 99999-9999" /></label>
+          <label>E-mail<input id="fEmail" type="email" maxlength="160" autocomplete="email" placeholder="cliente@email.com" /></label>
+          <label>Etapa<select id="fStage"></select></label>
+          <label>Prioridade<select id="fPriority"></select></label>
+          <label>Origem<select id="fSource"></select></label>
+          <label>Responsável<input id="fResponsible" maxlength="80" placeholder="Vendedor / responsável" /></label>
+          <label class="span-2">Produto / serviço<input id="fService" maxlength="140" placeholder="Ex.: Porta em ACM + painel ripado" /></label>
+          <label>Valor estimado (R$)<input id="fValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+          <label>Próximo retorno<input id="fFollowUp" type="date" /></label>
+          <label>Data da medição<input id="fMeasurement" type="date" /></label>
+          <label>Data da instalação<input id="fInstallation" type="date" /></label>
+          <label>Cidade<input id="fCity" maxlength="80" placeholder="Cidade" /></label>
+          <label>Bairro<input id="fNeighborhood" maxlength="80" placeholder="Bairro" /></label>
+          <label class="span-2">Endereço<input id="fAddress" maxlength="180" autocomplete="street-address" placeholder="Rua, número, complemento" /></label>
+          <label class="span-2">Observações<textarea id="fNotes" rows="5" maxlength="3000" placeholder="Detalhes do atendimento, orçamento, objeções, medidas, instalação..."></textarea></label>
+        </div>
+        <section class="client-history hidden" id="clientHistory" aria-labelledby="clientHistoryTitle"></section>
+        <div class="modal-footer">
+          <button type="button" class="danger-btn hidden" id="deleteClientBtn">Excluir</button>
+          <div class="modal-footer-right">
+            <button type="button" class="secondary-btn" id="cancelModalBtn">Cancelar</button>
+            <a class="secondary-btn hidden" id="whatsappBtn" target="_blank" rel="noreferrer">WhatsApp</a>
+            <button type="submit" class="primary-btn">Salvar cliente</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

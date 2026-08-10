@@ -1,0 +1,5 @@
+# Arquivos de sistema e backups locais
+.DS_Store
+Thumbs.db
+*.local
+tony-crm-backup-*.json
