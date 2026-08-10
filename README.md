@@ -39,7 +39,7 @@ CRM interno da Tony Acabamentos para acompanhar o cliente desde o primeiro conta
 
 ## Urgências, prazos e notificações
 
-- Dentro de cada coluna do **Funil**, a ordem considera primeiro os prazos críticos e depois a prioridade: **Urgente → Alta → Média → Baixa**.
+- Dentro de cada coluna do **Funil**, a prioridade é a regra principal: **Urgente → Alta → Média → Baixa**. Em clientes com a mesma prioridade, os prazos críticos vêm primeiro.
 - Clientes com **Data da instalação / entrega** vencida ou dentro dos próximos **3 dias** piscam no funil e entram automaticamente na aba **Urgências**.
 - Retornos vencidos, de hoje ou dos próximos 3 dias também entram na central e na aba de urgências.
 - Clique no sino no topo e escolha **Ativar avisos na área de trabalho** para receber notificações do navegador enquanto o CRM estiver aberto em uma aba. A permissão pode ser alterada depois nas configurações do navegador.

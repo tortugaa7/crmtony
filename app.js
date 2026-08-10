@@ -665,6 +665,9 @@
   }
 
   function pipelineClientComparator(a, b) {
+    const priorityDifference = urgencyRank(a.priority) - urgencyRank(b.priority);
+    if (priorityDifference) return priorityDifference;
+
     const aInfo = clientUrgencyInfo(a);
     const bInfo = clientUrgencyInfo(b);
     if (aInfo.rank !== bInfo.rank) return aInfo.rank - bInfo.rank;
@@ -1101,7 +1104,7 @@
     if (!stageGroups.includes(pipelineGroup)) pipelineGroup = stageGroups[0];
     const stages = STAGES.filter(stage => (stage.group || 'Fluxo') === pipelineGroup);
     $('pipelineView').innerHTML = `
-      <div class="pipeline-toolbar"><div class="segmented" aria-label="Escolher área do funil">${stageGroups.map(group => `<button type="button" data-group="${escapeHTML(group)}" class="${pipelineGroup === group ? 'active' : ''}">${escapeHTML(group === 'Operação' ? 'Produção e instalação' : group)}</button>`).join('')}</div><p class="pipeline-order-note">Mais urgente no topo: <strong>prazos críticos → Urgente → Alta → Média → Baixa</strong></p></div>
+      <div class="pipeline-toolbar"><div class="segmented" aria-label="Escolher área do funil">${stageGroups.map(group => `<button type="button" data-group="${escapeHTML(group)}" class="${pipelineGroup === group ? 'active' : ''}">${escapeHTML(group === 'Operação' ? 'Produção e instalação' : group)}</button>`).join('')}</div><p class="pipeline-order-note">Mais urgente no topo: <strong>Urgente → Alta → Média → Baixa</strong><br />Prazos críticos organizam clientes com a mesma prioridade.</p></div>
       <div class="pipeline-wrap">${stages.map(stage => {
         const list = data.filter(client => client.stage === stage.id).sort(pipelineClientComparator);
         return `<section class="pipeline-column" data-drop-stage="${escapeHTML(stage.id)}"><div class="column-header"><div><strong>${escapeHTML(stage.short || stage.label)}</strong><span>${list.length} cliente${list.length === 1 ? '' : 's'}</span></div><em>${money(list.reduce((sum, client) => sum + Number(client.value || 0), 0))}</em></div><div class="column-body">${list.length ? list.map(clientCard).join('') : '<div class="empty-column">Arraste um cliente para cá</div>'}</div></section>`;
