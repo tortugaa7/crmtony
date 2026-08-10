@@ -391,6 +391,26 @@
 
   function remoteClient() { return window.CRM_AUTH?.client || null; }
 
+  function latestLocalChangeAt() {
+    return [...clients, ...partners].reduce((latest, item) => {
+      const candidate = item.updatedAt || item.createdAt || '';
+      return validTimestamp(candidate) && (!latest || Date.parse(candidate) > Date.parse(latest)) ? candidate : latest;
+    }, '');
+  }
+
+  function remoteStateIsEmpty(row) {
+    return !Array.isArray(row?.clients) || !row.clients.length
+      ? (!Array.isArray(row?.partners) || !row.partners.length)
+      : false;
+  }
+
+  function localStateMustWin(row) {
+    const localChange = latestLocalChangeAt();
+    if (!localChange) return false;
+    if (remoteStateIsEmpty(row)) return true;
+    return !validTimestamp(row?.updated_at) || Date.parse(localChange) > Date.parse(row.updated_at);
+  }
+
   function saveLocalCollections(nextClients, nextPartners) {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextClients));
@@ -445,6 +465,10 @@
       .select('clients, partners, updated_at').eq('workspace_id', window.CRM_AUTH.getWorkspaceId()).maybeSingle();
     if (error) { console.error('Falha ao carregar o Supabase.', error); showToast('Não foi possível carregar os dados compartilhados. Confira a configuração do Supabase.', 'error'); return; }
     if (!data) { if (initial) scheduleRemoteSync(); return; }
+    if (initial && localStateMustWin(data)) {
+      scheduleRemoteSync();
+      return;
+    }
     if (data.updated_at && data.updated_at === lastRemoteUpdatedAt) return;
     applyRemoteState(data, { notify: !initial });
   }
@@ -454,7 +478,10 @@
     if (!supabase || remoteSubscription) return;
     remoteSubscription = supabase.channel(`crm-${window.CRM_AUTH.getWorkspaceId()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_workspace_state', filter: `workspace_id=eq.${window.CRM_AUTH.getWorkspaceId()}` }, payload => {
-        if (payload.new?.updated_at !== lastRemoteUpdatedAt) applyRemoteState(payload.new, { notify: true });
+        if (payload.new?.updated_at !== lastRemoteUpdatedAt) {
+          if (localStateMustWin(payload.new)) scheduleRemoteSync();
+          else applyRemoteState(payload.new, { notify: true });
+        }
       }).subscribe();
     window.setInterval(() => loadRemoteState(), SYNC_INTERVAL_MS);
   }
