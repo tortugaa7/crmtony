@@ -2,7 +2,7 @@
 
 CRM interno da Tony Acabamentos para acompanhar o cliente desde o primeiro contato no WhatsApp até o pós-venda.
 
-É uma aplicação estática: não usa framework, banco de dados, conta externa ou etapa de compilação. Basta subir os arquivos desta pasta para um repositório no GitHub e importar esse repositório na Vercel.
+É uma aplicação sem framework e sem etapa de compilação. Esta versão usa **Supabase** para login e dados compartilhados: basta configurar a URL e a chave pública, executar o SQL fornecido e subir a pasta para o GitHub/Vercel.
 
 ## O que esta versão entrega
 
@@ -23,6 +23,8 @@ CRM interno da Tony Acabamentos para acompanhar o cliente desde o primeiro conta
 - Relatório do período em PDF e relatório individual de cada cliente em PDF, baixados diretamente pelo navegador.
 - Backup em JSON, incluindo parceiros, importação com confirmação e migração automática da versão anterior do CRM.
 - Atualização da tela quando outra aba do mesmo navegador alterar os dados.
+- Login por e-mail e senha, com cadastro simples de novos usuários.
+- Base compartilhada entre computadores e celulares, com sincronização em tempo real e conferência automática de alterações.
 - Layout responsivo para computador e celular, com suporte a teclado e redução de movimento.
 
 ## Fluxo oficial
@@ -71,30 +73,19 @@ Na aba **Parceiros**, cadastre arquitetos, construtores e outros parceiros. Depo
 
 Ao abrir um parceiro, você vê todas as indicações vinculadas, a etapa de cada cliente, contrato/pedido, data de fechamento e valor. O contrato pode ser identificado por número e, se estiver em Drive ou outro local, por um link externo no cliente.
 
-## Publicar no GitHub e Vercel
+## Publicar no GitHub, Supabase e Vercel
 
-1. Crie um repositório vazio no GitHub.
-2. Envie **o conteúdo desta pasta** para a raiz do repositório. Os arquivos `index.html`, `styles.css`, `app.js`, `pdf-generator.js`, `config.js` e `vercel.json` devem ficar visíveis logo na raiz.
-3. Na Vercel, clique em **Add New → Project**, importe o repositório e confirme o deploy.
-4. Deixe o framework como **Other**. Não informe comando de build nem pasta de saída.
-5. Depois do deploy, abra o link, faça um cadastro de teste e exporte um backup antes de começar a usar no dia a dia.
-
-Não são necessárias variáveis de ambiente nem chaves de API.
+Siga o guia [SUPABASE_E_VERCEL.md](./SUPABASE_E_VERCEL.md). Em resumo: execute `supabase-setup.sql` no SQL Editor, copie a URL e a chave **anon/publishable** para `config.js`, envie esta pasta à raiz do repositório e deixe a Vercel fazer o deploy. Use **Other**, sem build e sem pasta de saída.
 
 ## Onde os dados ficam
 
-Os dados ficam no `localStorage` do navegador. Na prática, cada navegador/dispositivo mantém a sua própria base.
+Os dados ficam no Supabase e são compartilhados por todos os usuários autenticados do CRM. Uma cópia local é mantida apenas como contingência e para ajudar em caso de falha momentânea de internet.
 
-Isso torna o CRM simples de subir e usar sozinho, mas também significa que:
-
-- Vercel não sincroniza clientes entre computadores ou celulares.
-- Limpar os dados do navegador pode apagar a base local.
-- Use **Exportar backup** frequentemente e guarde o arquivo JSON fora do navegador.
+- Faça backup JSON periodicamente, principalmente antes de grandes importações.
 - O backup inclui clientes, parceiros, contratos cadastrados e históricos; ele não baixa arquivos anexados em links externos.
-- Não use aba anônima para operar o CRM.
+- Todo usuário que criar acesso no mesmo projeto Supabase verá a base compartilhada. Compartilhe o link do CRM somente com a equipe.
+- A chave `service_role` nunca pode ser usada no navegador, GitHub, Vercel ou `config.js`.
 - Avisos na área de trabalho funcionam enquanto o CRM permanece aberto em uma aba; para avisos com o navegador totalmente fechado seria necessário um serviço de notificações com servidor.
-
-Para uso simultâneo por uma equipe, a evolução correta é adicionar banco de dados e login reais, por exemplo com Supabase/Postgres. Não há login “de aparência” nesta versão.
 
 ## Configurações rápidas
 

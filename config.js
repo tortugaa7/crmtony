@@ -2,6 +2,12 @@ window.CRM_CONFIG = {
   companyName: 'Tony Acabamentos',
   shortName: 'TONY',
   productName: 'CRM',
+  // Supabase: cole somente a URL do projeto e a chave pública anon/publishable.
+  // Nunca coloque a service_role aqui ou em qualquer arquivo enviado ao GitHub.
+  supabaseUrl: 'COLE_AQUI_A_URL_DO_SEU_PROJETO',
+  supabaseAnonKey: 'COLE_AQUI_A_CHAVE_PUBLICA_ANON_OU_PUBLISHABLE',
+  supabaseWorkspaceId: 'tony-acabamentos',
+  syncIntervalMs: 20000,
   storageKey: 'tony_crm_clients_v2',
   whatsappCountryCode: '55',
   whatsappGreeting: 'Olá{name}! Tudo bem? Aqui é da Tony Acabamentos.',

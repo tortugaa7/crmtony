@@ -61,6 +61,7 @@
   const CLOSED_STAGE_ID = stageById.has(CONFIG.closedStageId) ? CONFIG.closedStageId : (stageById.has('closed') ? 'closed' : STAGES[STAGES.length - 1].id);
   const CLOSED_STAGE_INDEX = STAGES.findIndex(stage => stage.id === CLOSED_STAGE_ID);
   const NOTIFICATION_STORAGE_KEY = CONFIG.notificationStorageKey || 'tony_crm_notifications_v1';
+  const SYNC_INTERVAL_MS = Number.isFinite(Number(CONFIG.syncIntervalMs)) ? Math.max(10_000, Number(CONFIG.syncIntervalMs)) : 20_000;
 
   let clients = loadInitialClients();
   let partners = loadInitialPartners();
@@ -76,6 +77,9 @@
   let reportPeriod = createDefaultPeriod();
   let notificationPanelOpen = false;
   let deliveredDesktopNotificationKeys = loadDesktopNotificationKeys();
+  let remoteSaveTimer = null;
+  let remoteSubscription = null;
+  let lastRemoteUpdatedAt = '';
 
   function escapeHTML(value) {
     return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
@@ -385,6 +389,76 @@
     return result;
   }
 
+  function remoteClient() { return window.CRM_AUTH?.client || null; }
+
+  function saveLocalCollections(nextClients, nextPartners) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextClients));
+      window.localStorage.setItem(PARTNER_STORAGE_KEY, JSON.stringify(nextPartners));
+      return true;
+    } catch (error) {
+      console.error('Não foi possível manter uma cópia local do CRM.', error);
+      return false;
+    }
+  }
+
+  function scheduleRemoteSync() {
+    if (!remoteClient()) return;
+    window.clearTimeout(remoteSaveTimer);
+    remoteSaveTimer = window.setTimeout(syncRemoteState, 350);
+  }
+
+  async function syncRemoteState() {
+    const supabase = remoteClient();
+    if (!supabase) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return;
+    const { data, error } = await supabase.from('crm_workspace_state').upsert({
+      workspace_id: window.CRM_AUTH.getWorkspaceId(), clients, partners, updated_by: sessionData.session.user.id
+    }, { onConflict: 'workspace_id' }).select('updated_at').single();
+    if (error) {
+      console.error('Falha na sincronização do Supabase.', error);
+      showToast('Alteração salva nesta tela, mas não sincronizou com a equipe. Tente novamente.', 'error');
+      return;
+    }
+    lastRemoteUpdatedAt = data?.updated_at || lastRemoteUpdatedAt;
+  }
+
+  function applyRemoteState(row, { notify = false } = {}) {
+    if (!row) return false;
+    const nextClients = normalizeClients(row.clients);
+    const nextPartners = normalizePartners(row.partners);
+    clients = nextClients;
+    partners = nextPartners;
+    saveLocalCollections(nextClients, nextPartners);
+    lastRemoteUpdatedAt = row.updated_at || lastRemoteUpdatedAt;
+    render();
+    maybeSendDesktopNotifications();
+    if (notify) showToast('O CRM foi atualizado por outro usuário.', 'success');
+    return true;
+  }
+
+  async function loadRemoteState({ initial = false } = {}) {
+    const supabase = remoteClient();
+    if (!supabase) return;
+    const { data, error } = await supabase.from('crm_workspace_state')
+      .select('clients, partners, updated_at').eq('workspace_id', window.CRM_AUTH.getWorkspaceId()).maybeSingle();
+    if (error) { console.error('Falha ao carregar o Supabase.', error); showToast('Não foi possível carregar os dados compartilhados. Confira a configuração do Supabase.', 'error'); return; }
+    if (!data) { if (initial) scheduleRemoteSync(); return; }
+    if (data.updated_at && data.updated_at === lastRemoteUpdatedAt) return;
+    applyRemoteState(data, { notify: !initial });
+  }
+
+  function connectRemoteUpdates() {
+    const supabase = remoteClient();
+    if (!supabase || remoteSubscription) return;
+    remoteSubscription = supabase.channel(`crm-${window.CRM_AUTH.getWorkspaceId()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_workspace_state', filter: `workspace_id=eq.${window.CRM_AUTH.getWorkspaceId()}` }, payload => {
+        if (payload.new?.updated_at !== lastRemoteUpdatedAt) applyRemoteState(payload.new, { notify: true });
+      }).subscribe();
+    window.setInterval(() => loadRemoteState(), SYNC_INTERVAL_MS);
+  }
+
   function readStorage(key) {
     try {
       return { ok: true, value: window.localStorage.getItem(key) };
@@ -443,6 +517,7 @@
   function persistClients(nextClients) {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextClients));
+      scheduleRemoteSync();
       return true;
     } catch (error) {
       console.error('Não foi possível salvar os dados do CRM.', error);
@@ -462,6 +537,7 @@
   function persistPartners(nextPartners) {
     try {
       window.localStorage.setItem(PARTNER_STORAGE_KEY, JSON.stringify(nextPartners));
+      scheduleRemoteSync();
       return true;
     } catch (error) {
       console.error('Não foi possível salvar os parceiros do CRM.', error);
@@ -507,6 +583,7 @@
     }
     clients = normalizedClients;
     partners = normalizedPartners;
+    scheduleRemoteSync();
     if (rerender) render();
     return true;
   }
@@ -1744,7 +1821,8 @@
     });
   }
 
-  function init() {
+  async function init() {
+    await window.CRM_AUTH?.ready;
     document.title = `${CONFIG.productName || 'CRM'} | ${CONFIG.companyName || 'Tony Acabamentos'}`;
     document.querySelector('.brand-copy strong').textContent = CONFIG.shortName || 'TONY';
     document.querySelector('.brand-copy span').textContent = CONFIG.productName || 'CRM';
@@ -1752,6 +1830,8 @@
     loadSidebarState();
     updateSidebarState();
     bindEvents();
+    await loadRemoteState({ initial: true });
+    connectRemoteUpdates();
     render();
     maybeSendDesktopNotifications();
   }

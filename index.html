@@ -10,6 +10,22 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <section class="auth-card">
+      <div class="auth-brand"><div class="brand-mark" aria-hidden="true">T</div><div><strong>TONY</strong><span>CRM COMPARTILHADO</span></div></div>
+      <h1 id="authTitle">Entrar no CRM</h1>
+      <p id="authSubtitle">Entre para acessar os dados compartilhados da equipe.</p>
+      <form id="authForm" class="auth-form">
+        <label>E-mail<input id="authEmail" type="email" autocomplete="email" required placeholder="voce@empresa.com" /></label>
+        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres" /></label>
+        <label id="authPasswordConfirmField" class="hidden">Confirmar senha<input id="authPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a senha" /></label>
+        <p class="auth-message error hidden" id="authError" role="alert"></p>
+        <p class="auth-message status hidden" id="authStatus" role="status"></p>
+        <button type="submit" class="primary-btn auth-submit" id="authSubmitBtn">Entrar no CRM</button>
+      </form>
+      <button type="button" class="text-btn auth-mode" id="authModeBtn">Criar meu acesso</button>
+    </section>
+  </div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand" aria-label="Tony CRM"><div class="brand-mark" aria-hidden="true">T</div><div class="brand-copy"><strong>TONY</strong><span>CRM</span></div></div>
@@ -27,13 +43,14 @@
         <label class="upload-btn"><span class="nav-icon" aria-hidden="true">⇧</span><span>Importar backup</span><input id="importInput" type="file" accept="application/json,.json" /></label>
         <button type="button" id="collapseBtn"><span class="nav-icon" aria-hidden="true">‹</span><span>Recolher</span></button>
       </div>
-      <p class="sidebar-data-note"><span aria-hidden="true">●</span> Dados salvos neste navegador</p>
+      <p class="sidebar-data-note"><span aria-hidden="true">●</span> Dados sincronizados com a equipe</p>
     </aside>
 
     <main class="main-content">
       <header class="topbar">
         <div><h1 id="pageTitle">Visão geral</h1><p id="pageSubtitle">Acompanhe o comercial e a operação em um só lugar.</p></div>
         <div class="topbar-actions">
+          <div class="account-menu"><span id="currentUserEmail" title="Usuário conectado">Carregando…</span><button type="button" class="text-btn" id="logoutBtn">Sair</button></div>
           <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar cliente</span><input id="searchInput" type="search" autocomplete="off" placeholder="Buscar cliente, telefone, cidade..." /></label>
           <div class="notification-area" id="notificationArea">
             <button type="button" class="notification-btn" id="notificationBtn" aria-label="Abrir notificações" aria-expanded="false" aria-controls="notificationPanel"><span aria-hidden="true">🔔</span><span class="notification-badge hidden" id="notificationBadge">0</span></button>
@@ -128,6 +145,8 @@
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
   <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./auth.js"></script>
   <script src="./pdf-generator.js"></script>
   <script src="./app.js"></script>
 </body>
